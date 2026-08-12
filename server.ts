@@ -1,6 +1,9 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection } from "firebase/firestore";
 import { SessionData, UserProfile, Match, MatchEvent, PlayerStats, SessionParticipant } from "./src/types";
 
 const app = express();
@@ -8,10 +11,50 @@ const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
-// In-Memory Data Stores with persistence helpers
+// --- FIREBASE FIRESTORE INITIALIZATION ---
+let db: any = null;
+
+try {
+  if (fs.existsSync("./firebase-applet-config.json")) {
+    const config = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf8"));
+    const firebaseApp = initializeApp(config);
+    db = getFirestore(firebaseApp, config.firestoreDatabaseId || "(default)");
+    console.log("Firestore initialized successfully!");
+  }
+} catch (err) {
+  console.error("Failed to initialize Firestore:", err);
+}
+
+// In-Memory Data Stores with Firestore synchronization
 const users: Record<string, { profile: UserProfile; passwordHash: string }> = {};
 const sessions: Record<string, SessionData> = {};
 const GLOBAL_SESSION_CODE = "MAIN";
+
+async function loadUsersFromDb() {
+  if (!db) return;
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data && data.profile) {
+        users[docSnap.id] = data as any;
+      }
+    });
+    console.log(`Loaded ${Object.keys(users).length} users from Firestore.`);
+  } catch (err) {
+    console.error("Error loading users from Firestore:", err);
+  }
+}
+
+async function saveUserToDb(id: string, userEntry: { profile: UserProfile; passwordHash: string }) {
+  users[id] = userEntry;
+  if (!db) return;
+  try {
+    await setDoc(doc(db, "users", id), userEntry);
+  } catch (err) {
+    console.error(`Error saving user ${id} to Firestore:`, err);
+  }
+}
 
 // Helper to get or create the single global session
 function initGlobalSession(): SessionData {
@@ -28,6 +71,44 @@ function initGlobalSession(): SessionData {
     matchHistory: [],
     stats: {},
   };
+}
+
+async function loadSessionFromDb(): Promise<SessionData> {
+  if (sessions[GLOBAL_SESSION_CODE]) return sessions[GLOBAL_SESSION_CODE];
+
+  if (db) {
+    try {
+      const docSnap = await getDoc(doc(db, "sessions", GLOBAL_SESSION_CODE));
+      if (docSnap.exists()) {
+        const data = docSnap.data() as SessionData;
+        sessions[GLOBAL_SESSION_CODE] = data;
+        sessions["PICKUP1"] = data;
+        console.log("Loaded global session from Firestore.");
+        return data;
+      }
+    } catch (err) {
+      console.error("Error loading session from Firestore:", err);
+    }
+  }
+
+  const newSession = initGlobalSession();
+  sessions[GLOBAL_SESSION_CODE] = newSession;
+  sessions["PICKUP1"] = newSession;
+  if (db) {
+    saveSessionToDb(newSession).catch(() => {});
+  }
+  return newSession;
+}
+
+async function saveSessionToDb(session: SessionData) {
+  sessions[GLOBAL_SESSION_CODE] = session;
+  sessions["PICKUP1"] = session;
+  if (!db) return;
+  try {
+    await setDoc(doc(db, "sessions", GLOBAL_SESSION_CODE), session);
+  } catch (err) {
+    console.error("Error saving session to Firestore:", err);
+  }
 }
 
 function getGlobalSession(): SessionData {
@@ -132,7 +213,7 @@ function recalculateStats(session: SessionData) {
 }
 
 // --- AUTH ROUTES ---
-app.post("/api/auth/register", (req, res) => {
+app.post("/api/auth/register", async (req, res) => {
   const { username, name, password, avatarUrl } = req.body;
   if (!username || !name || !password) {
     return res.status(400).json({ error: "Username, name, and password are required" });
@@ -155,7 +236,8 @@ app.post("/api/auth/register", (req, res) => {
     createdAt: Date.now(),
   };
 
-  users[id] = { profile, passwordHash: password };
+  const userEntry = { profile, passwordHash: password };
+  await saveUserToDb(id, userEntry);
   res.json({ user: profile, token: id });
 });
 
@@ -184,7 +266,7 @@ app.get("/api/auth/me", (req, res) => {
   res.json({ user: users[token].profile });
 });
 
-app.post("/api/users/profile", (req, res) => {
+app.post("/api/users/profile", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token || !users[token]) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -194,14 +276,17 @@ app.post("/api/users/profile", (req, res) => {
   if (name !== undefined) users[token].profile.name = name;
   if (avatarUrl !== undefined) users[token].profile.avatarUrl = avatarUrl;
 
+  await saveUserToDb(token, users[token]);
+
   // Sync to current session participants & stats
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
   const participant = session.participants.find((p) => p.userId === token);
   if (participant) {
     if (name !== undefined) participant.name = name;
     if (avatarUrl !== undefined) participant.avatarUrl = avatarUrl;
   }
   recalculateStats(session);
+  await saveSessionToDb(session);
 
   res.json({ user: users[token].profile });
 });
@@ -209,29 +294,32 @@ app.post("/api/users/profile", (req, res) => {
 // --- SESSION ROUTES ---
 
 // Single Global Session Endpoint
-app.get("/api/session", (req, res) => {
-  res.json(getGlobalSession());
+app.get("/api/session", async (req, res) => {
+  const session = await loadSessionFromDb();
+  res.json(session);
 });
 
 // Create Session (Updates global session parameters)
-app.post("/api/sessions", (req, res) => {
+app.post("/api/sessions", async (req, res) => {
   const { title, sport, teamSize } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
   if (title) session.title = title;
   if (sport) session.sport = sport;
   if (teamSize) session.teamSize = Number(teamSize);
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Get Session by Code (Always returns single global session)
-app.get("/api/sessions/:code", (req, res) => {
-  res.json(getGlobalSession());
+app.get("/api/sessions/:code", async (req, res) => {
+  const session = await loadSessionFromDb();
+  res.json(session);
 });
 
 // Join / Check-in to Session
-app.post("/api/sessions/:code/checkin", (req, res) => {
+app.post("/api/sessions/:code/checkin", async (req, res) => {
   const { userId } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   const userProfile = users[userId]?.profile;
   if (!userProfile) {
@@ -264,13 +352,14 @@ app.post("/api/sessions/:code/checkin", (req, res) => {
   }
 
   recalculateStats(session);
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Add Temporary / Guest Player (no account required)
-app.post("/api/sessions/:code/add-temp-player", (req, res) => {
+app.post("/api/sessions/:code/add-temp-player", async (req, res) => {
   const { name, hostUserId, avatarUrl } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: "Temporary player name required" });
@@ -291,7 +380,8 @@ app.post("/api/sessions/:code/add-temp-player", (req, res) => {
   };
 
   // Save temp user profile
-  users[tempUserId] = { profile: tempProfile, passwordHash: 'guest' };
+  const userEntry = { profile: tempProfile, passwordHash: 'guest' };
+  await saveUserToDb(tempUserId, userEntry);
 
   const p: SessionParticipant = {
     id: `p-${tempUserId}`,
@@ -311,13 +401,14 @@ app.post("/api/sessions/:code/add-temp-player", (req, res) => {
   }
 
   recalculateStats(session);
+  await saveSessionToDb(session);
   res.json({ session, tempUser: tempProfile });
 });
 
 // Start Game / Divide Teams randomly based on top arrived players
-app.post("/api/sessions/:code/start-game", (req, res) => {
+app.post("/api/sessions/:code/start-game", async (req, res) => {
   const { teamSize } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   const requestedSize = Number(teamSize) || session.teamSize || 5;
   session.teamSize = requestedSize;
@@ -379,13 +470,14 @@ app.post("/api/sessions/:code/start-game", (req, res) => {
 
   session.currentMatch = newMatch;
   recalculateStats(session);
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Edit Teams (Trust-based direct modification of teamA, teamB, bench)
-app.post("/api/sessions/:code/edit-teams", (req, res) => {
+app.post("/api/sessions/:code/edit-teams", async (req, res) => {
   const { teamAPlayerIds, teamBPlayerIds, benchPlayerIds } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   if (!session.currentMatch) {
     return res.status(400).json({ error: "No active match to edit" });
@@ -416,13 +508,14 @@ app.post("/api/sessions/:code/edit-teams", (req, res) => {
     }
   });
 
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Sub / Replace a Player Mid-Match
-app.post("/api/sessions/:code/sub-player", (req, res) => {
+app.post("/api/sessions/:code/sub-player", async (req, res) => {
   const { leavingPlayerId, targetTeam, replacementPlayerId, isRandom } = req.body; // targetTeam: 'teamA' | 'teamB'
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   if (!session.currentMatch) {
     return res.status(400).json({ error: "No active match" });
@@ -479,13 +572,14 @@ app.post("/api/sessions/:code/sub-player", (req, res) => {
     }
   });
 
+  await saveSessionToDb(session);
   res.json({ session, replacementId });
 });
 
 // Log Match Event (Goal, Assist, Save)
-app.post("/api/sessions/:code/log-event", (req, res) => {
+app.post("/api/sessions/:code/log-event", async (req, res) => {
   const { playerId, type, team } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   if (!session.currentMatch) {
     return res.status(400).json({ error: "No active match" });
@@ -511,13 +605,14 @@ app.post("/api/sessions/:code/log-event", (req, res) => {
     else if (team === "teamB") match.scoreB += 1;
   }
 
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Undo Match Event
-app.post("/api/sessions/:code/undo-event", (req, res) => {
+app.post("/api/sessions/:code/undo-event", async (req, res) => {
   const { eventId } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   if (!session.currentMatch) {
     return res.status(400).json({ error: "No active match" });
@@ -534,12 +629,13 @@ app.post("/api/sessions/:code/undo-event", (req, res) => {
     match.events.splice(idx, 1);
   }
 
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Finish Match & Execute Bench Rotation Rules
-app.post("/api/sessions/:code/finish-match", (req, res) => {
-  const session = getGlobalSession();
+app.post("/api/sessions/:code/finish-match", async (req, res) => {
+  const session = await loadSessionFromDb();
 
   if (!session.currentMatch) {
     return res.status(400).json({ error: "No active match to finish" });
@@ -659,13 +755,14 @@ app.post("/api/sessions/:code/finish-match", (req, res) => {
   });
 
   recalculateStats(session);
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Leave Session / Mark Away
-app.post("/api/sessions/:code/leave-session", (req, res) => {
+app.post("/api/sessions/:code/leave-session", async (req, res) => {
   const { userId } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   const p = session.participants.find((p) => p.userId === userId);
   if (p) {
@@ -678,12 +775,13 @@ app.post("/api/sessions/:code/leave-session", (req, res) => {
     session.currentMatch.benchPlayerIds = session.currentMatch.benchPlayerIds.filter((id) => id !== userId);
   }
 
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // End Session / Close active match without auto-starting new one
-app.post("/api/sessions/:code/end-session", (req, res) => {
-  const session = getGlobalSession();
+app.post("/api/sessions/:code/end-session", async (req, res) => {
+  const session = await loadSessionFromDb();
 
   if (session.currentMatch) {
     const match = session.currentMatch;
@@ -709,14 +807,15 @@ app.post("/api/sessions/:code/end-session", (req, res) => {
   });
 
   recalculateStats(session);
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Edit Historical Match (12-hour edit window)
-app.post("/api/sessions/:code/matches/:matchId/edit", (req, res) => {
+app.post("/api/sessions/:code/matches/:matchId/edit", async (req, res) => {
   const { matchId } = req.params;
   const { scoreA, scoreB, teamAName, teamBName, events } = req.body;
-  const session = getGlobalSession();
+  const session = await loadSessionFromDb();
 
   const match = session.matchHistory.find((m) => m.id === matchId);
   if (!match) {
@@ -744,11 +843,15 @@ app.post("/api/sessions/:code/matches/:matchId/edit", (req, res) => {
   else match.winner = "draw";
 
   recalculateStats(session);
+  await saveSessionToDb(session);
   res.json(session);
 });
 
 // Serve Vite dev or production static build
 async function startServer() {
+  await loadUsersFromDb();
+  await loadSessionFromDb();
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
