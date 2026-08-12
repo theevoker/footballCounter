@@ -1,0 +1,6 @@
+{
+  "name": "SquadPicker - Pickup Game & Bench Rotator",
+  "description": "Arrival check-in, automated team generation, bench rotation rules, trust-based team editing, and post-match player stats leaderboard for pickup sports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
