@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SessionData, UserProfile } from '../types';
 import { editTeams } from '../lib/api';
+import { PlayerAvatar } from './Avatar';
 import { Shuffle, ArrowLeftRight, Check, ArrowRight, Shield, Users, HelpCircle, Sparkles } from 'lucide-react';
 
 interface TrustTeamEditorProps {
@@ -177,7 +178,7 @@ export const TrustTeamEditor: React.FC<TrustTeamEditorProps> = ({ session, onRef
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <img src={p.avatarUrl} alt={p.name} className="w-8 h-8 rounded-full object-cover" />
+                    <PlayerAvatar src={p.avatarUrl} name={p.name} className="w-8 h-8 rounded-full" textClassName="text-xs" />
                     <div>
                       <span className="block font-bold text-xs text-white">{p.name}</span>
                       {p.isTemp && <span className="text-[9px] text-amber-400">Guest</span>}
@@ -218,7 +219,7 @@ export const TrustTeamEditor: React.FC<TrustTeamEditorProps> = ({ session, onRef
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <img src={p.avatarUrl} alt={p.name} className="w-8 h-8 rounded-full object-cover" />
+                    <PlayerAvatar src={p.avatarUrl} name={p.name} className="w-8 h-8 rounded-full" textClassName="text-xs" />
                     <div>
                       <span className="block font-bold text-xs text-white">{p.name}</span>
                       {p.isTemp && <span className="text-[9px] text-amber-400">Guest</span>}
@@ -263,7 +264,7 @@ export const TrustTeamEditor: React.FC<TrustTeamEditorProps> = ({ session, onRef
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-black text-amber-400 w-4">#{index + 1}</span>
-                      <img src={p.avatarUrl} alt={p.name} className="w-8 h-8 rounded-full object-cover" />
+                      <PlayerAvatar src={p.avatarUrl} name={p.name} className="w-8 h-8 rounded-full" textClassName="text-xs" />
                       <div>
                         <span className="block font-bold text-xs text-white">{p.name}</span>
                         {p.isTemp && <span className="text-[9px] text-amber-400">Guest</span>}

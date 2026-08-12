@@ -9,6 +9,7 @@ import { TrustTeamEditor } from './components/TrustTeamEditor';
 import { MatchHistory } from './components/MatchHistory';
 import { Leaderboard } from './components/Leaderboard';
 import { AuthModal } from './components/AuthModal';
+import { EditProfileModal } from './components/EditProfileModal';
 import { StartGameModal } from './components/StartGameModal';
 import { PostMatchModal } from './components/PostMatchModal';
 import { RefreshCw } from 'lucide-react';
@@ -22,6 +23,7 @@ export default function App() {
 
   // Modals
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isStartGameOpen, setIsStartGameOpen] = useState(false);
   const [isPostMatchOpen, setIsPostMatchOpen] = useState(false);
   const [penaltyWinner, setPenaltyWinner] = useState<'teamA' | 'teamB' | null>(null);
@@ -98,6 +100,7 @@ export default function App() {
         onOpenAuth={() => setIsAuthOpen(true)}
         onLogout={handleLogout}
         onSwitchAccount={() => setIsAuthOpen(true)}
+        onEditProfile={() => setIsEditProfileOpen(true)}
       />
 
       <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-4 md:p-6 pb-24 md:pb-6 space-y-6">
@@ -173,6 +176,18 @@ export default function App() {
           refreshSession();
         }}
       />
+
+      {user && (
+        <EditProfileModal
+          isOpen={isEditProfileOpen}
+          onClose={() => setIsEditProfileOpen(false)}
+          user={user}
+          onSuccess={(updatedUser) => {
+            setUser(updatedUser);
+            refreshSession();
+          }}
+        />
+      )}
 
       {session && (
         <StartGameModal

@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserProfile } from '../types';
-import { Users, Trophy, LogOut, UserPlus, Flame, Shield, Shuffle, History } from 'lucide-react';
+import { PlayerAvatar } from './Avatar';
+import { Users, Trophy, LogOut, UserPlus, Shield, Shuffle, History, Edit3 } from 'lucide-react';
 
 interface HeaderProps {
   user: UserProfile | null;
@@ -12,6 +13,7 @@ interface HeaderProps {
   onOpenAuth: () => void;
   onLogout: () => void;
   onSwitchAccount: () => void;
+  onEditProfile: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
   onLogout,
   onSwitchAccount,
+  onEditProfile,
 }) => {
   return (
     <>
@@ -127,15 +130,25 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center justify-end gap-1.5 shrink-0">
             {user ? (
               <div className="flex items-center gap-1.5 bg-slate-800/80 p-1 pr-2 rounded-full border border-slate-700/70">
-                <img
-                  src={user.avatarUrl}
-                  alt={user.name}
-                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover ring-2 ring-emerald-500/50"
-                />
-                <div className="hidden sm:flex flex-col text-left text-xs max-w-[90px] truncate">
-                  <span className="font-semibold text-slate-100 truncate">{user.name}</span>
-                  <span className="text-[9px] text-slate-400 truncate">@{user.username}</span>
-                </div>
+                <button
+                  onClick={onEditProfile}
+                  className="flex items-center gap-1.5 hover:opacity-85 transition-opacity text-left group"
+                  title="Click to edit profile (name & picture)"
+                >
+                  <PlayerAvatar
+                    src={user.avatarUrl}
+                    name={user.name}
+                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover ring-2 ring-emerald-500/50 group-hover:ring-emerald-400"
+                    textClassName="text-[10px]"
+                  />
+                  <div className="hidden sm:flex flex-col text-left text-xs max-w-[90px] truncate">
+                    <span className="font-semibold text-slate-100 truncate group-hover:text-emerald-300 transition-colors">
+                      {user.name}
+                    </span>
+                    <span className="text-[9px] text-slate-400 truncate">@{user.username}</span>
+                  </div>
+                  <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-emerald-400 transition-colors hidden sm:block" />
+                </button>
 
                 <div className="hidden sm:block h-4 w-px bg-slate-700 mx-0.5" />
 

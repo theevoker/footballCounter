@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SessionData, UserProfile, SessionParticipant } from '../types';
 import { checkInToSession, addTempPlayer } from '../lib/api';
+import { PlayerAvatar } from './Avatar';
 import { MapPin, UserPlus, Clock, Play, Users, CheckCircle, ShieldAlert, Sparkles, Plus } from 'lucide-react';
 
 interface CheckInPanelProps {
@@ -191,10 +192,11 @@ export const CheckInPanel: React.FC<CheckInPanelProps> = ({
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="relative">
-                      <img
+                      <PlayerAvatar
                         src={participant.avatarUrl}
-                        alt={participant.name}
-                        className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-800"
+                        name={participant.name}
+                        className="w-10 h-10 rounded-full ring-2 ring-slate-800"
+                        textClassName="text-sm"
                       />
                       <span className="absolute -bottom-1 -right-1 bg-slate-800 border border-slate-700 text-[10px] font-black text-emerald-400 w-5 h-5 rounded-full flex items-center justify-center">
                         #{index + 1}

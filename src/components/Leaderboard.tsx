@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SessionData, PlayerStats } from '../types';
+import { PlayerAvatar } from './Avatar';
 import { Trophy, Flame, Target, Shield, Sparkles, Clock, ChevronDown, ChevronUp, ArrowUpDown, Filter } from 'lucide-react';
 
 interface LeaderboardProps {
@@ -95,7 +96,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ session }) => {
               </div>
               {topScorer && topScorer.goals > 0 ? (
                 <div className="flex items-center gap-2">
-                  <img src={topScorer.avatarUrl} alt={topScorer.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover shrink-0 ring-1 ring-amber-500/40" />
+                  <PlayerAvatar src={topScorer.avatarUrl} name={topScorer.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-1 ring-amber-500/40" textClassName="text-xs" />
                   <div className="min-w-0">
                     <span className="font-bold text-xs text-white block truncate">{topScorer.name}</span>
                     <span className="text-[10px] sm:text-[11px] font-black text-amber-400">{topScorer.goals} Goals</span>
@@ -114,7 +115,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ session }) => {
               </div>
               {topWins && topWins.wins > 0 ? (
                 <div className="flex items-center gap-2">
-                  <img src={topWins.avatarUrl} alt={topWins.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover shrink-0 ring-1 ring-emerald-500/40" />
+                  <PlayerAvatar src={topWins.avatarUrl} name={topWins.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-1 ring-emerald-500/40" textClassName="text-xs" />
                   <div className="min-w-0">
                     <span className="font-bold text-xs text-white block truncate">{topWins.name}</span>
                     <span className="text-[10px] sm:text-[11px] font-black text-emerald-400">{topWins.wins} Wins ({topWins.winRate}%)</span>
@@ -133,7 +134,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ session }) => {
               </div>
               {topAssists && topAssists.assists > 0 ? (
                 <div className="flex items-center gap-2">
-                  <img src={topAssists.avatarUrl} alt={topAssists.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover shrink-0 ring-1 ring-blue-500/40" />
+                  <PlayerAvatar src={topAssists.avatarUrl} name={topAssists.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-1 ring-blue-500/40" textClassName="text-xs" />
                   <div className="min-w-0">
                     <span className="font-bold text-xs text-white block truncate">{topAssists.name}</span>
                     <span className="text-[10px] sm:text-[11px] font-black text-blue-400">{topAssists.assists} Assists</span>
@@ -152,7 +153,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ session }) => {
               </div>
               {firstArrived ? (
                 <div className="flex items-center gap-2">
-                  <img src={firstArrived.avatarUrl} alt={firstArrived.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover shrink-0 ring-1 ring-purple-500/40" />
+                  <PlayerAvatar src={firstArrived.avatarUrl} name={firstArrived.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-1 ring-purple-500/40" textClassName="text-xs" />
                   <div className="min-w-0">
                     <span className="font-bold text-xs text-white block truncate">{firstArrived.name}</span>
                     <span className="text-[10px] sm:text-[11px] font-bold text-purple-400">1st Arrived</span>
@@ -241,10 +242,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ session }) => {
 
                         {/* Avatar & Name */}
                         <div className="flex items-center gap-2 min-w-0">
-                          <img
+                          <PlayerAvatar
                             src={st.avatarUrl}
-                            alt={st.name}
-                            className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-800 shrink-0"
+                            name={st.name}
+                            className="w-8 h-8 rounded-full ring-2 ring-slate-800"
+                            textClassName="text-xs"
                           />
                           <div className="min-w-0">
                             <span className="font-bold text-xs text-white block truncate">{st.name}</span>
@@ -331,7 +333,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ session }) => {
 
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2.5">
-                            <img src={st.avatarUrl} alt={st.name} className="w-7 h-7 rounded-full object-cover" />
+                            <PlayerAvatar src={st.avatarUrl} name={st.name} className="w-7 h-7 rounded-full" textClassName="text-xs" />
                             <span className="font-bold text-white text-xs">{st.name}</span>
                           </div>
                         </td>

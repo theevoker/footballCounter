@@ -4,7 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { SessionData, UserProfile, Match, MatchEvent, PlayerStats, SessionParticipant } from "./src/types";
 
 const app = express();
-const PORT = 8080;
+const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
@@ -146,7 +146,7 @@ app.post("/api/auth/register", (req, res) => {
   }
 
   const id = `u_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-  const defaultAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`;
+  const defaultAvatar = avatarUrl || "";
   const profile: UserProfile = {
     id,
     username,
@@ -191,8 +191,17 @@ app.post("/api/users/profile", (req, res) => {
   }
 
   const { name, avatarUrl } = req.body;
-  if (name) users[token].profile.name = name;
-  if (avatarUrl) users[token].profile.avatarUrl = avatarUrl;
+  if (name !== undefined) users[token].profile.name = name;
+  if (avatarUrl !== undefined) users[token].profile.avatarUrl = avatarUrl;
+
+  // Sync to current session participants & stats
+  const session = getGlobalSession();
+  const participant = session.participants.find((p) => p.userId === token);
+  if (participant) {
+    if (name !== undefined) participant.name = name;
+    if (avatarUrl !== undefined) participant.avatarUrl = avatarUrl;
+  }
+  recalculateStats(session);
 
   res.json({ user: users[token].profile });
 });
@@ -269,7 +278,7 @@ app.post("/api/sessions/:code/add-temp-player", (req, res) => {
 
   const hostUser = users[hostUserId]?.profile;
   const tempUserId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-  const defaultAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`;
+  const defaultAvatar = avatarUrl || "";
 
   const tempProfile: UserProfile = {
     id: tempUserId,

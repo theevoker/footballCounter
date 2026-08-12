@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { registerAccount, loginAccount } from '../lib/api';
 import { UserProfile } from '../types';
-import { X, Upload, Check, User, Lock, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { PlayerAvatar } from './Avatar';
+import { X, Upload, Trash2, User, Lock } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -9,17 +10,6 @@ interface AuthModalProps {
   onSuccess: (user: UserProfile) => void;
   initialMode?: 'login' | 'register';
 }
-
-const PRESET_AVATARS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-];
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -31,8 +21,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState(PRESET_AVATARS[0]);
-  const [customAvatarUrl, setCustomAvatarUrl] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [customUrlInput, setCustomUrlInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,11 +38,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
-          setSelectedAvatar(reader.result);
-          setCustomAvatarUrl('');
+          setAvatarUrl(reader.result);
+          setCustomUrlInput('');
+          setError(null);
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleApplyCustomUrl = () => {
+    if (customUrlInput.trim()) {
+      setAvatarUrl(customUrlInput.trim());
+      setCustomUrlInput('');
+      setError(null);
     }
   };
 
@@ -62,13 +61,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
 
     try {
-      const finalAvatar = customAvatarUrl.trim() || selectedAvatar;
-
       if (mode === 'register') {
         if (!username.trim() || !name.trim() || !password) {
           throw new Error('Please fill in all required fields');
         }
-        const result = await registerAccount(username.trim(), name.trim(), password, finalAvatar);
+        const result = await registerAccount(username.trim(), name.trim(), password, avatarUrl.trim());
         onSuccess(result.user);
       } else {
         if (!username.trim() || !password) {
@@ -159,79 +156,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
 
-          {/* Profile Photo Selector for Registration */}
+          {/* Optional Profile Photo for Registration */}
           {mode === 'register' && (
             <div className="space-y-3 pt-2 border-t border-slate-800">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Profile Photo (Optional)
-                </label>
-                <span className="text-[10px] text-slate-500">Preset, Upload or URL</span>
-              </div>
+              <label className="block text-xs font-semibold text-slate-300">
+                Profile Photo (Optional)
+              </label>
 
               {/* Preview */}
               <div className="flex items-center gap-4 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
-                <img
-                  src={customAvatarUrl.trim() || selectedAvatar}
-                  alt="Avatar Preview"
-                  className="w-14 h-14 rounded-full object-cover ring-2 ring-emerald-500/50"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = PRESET_AVATARS[0];
-                  }}
+                <PlayerAvatar
+                  src={avatarUrl}
+                  name={name || username}
+                  className="w-12 h-12 rounded-full ring-2 ring-emerald-500/50"
+                  textClassName="text-base"
                 />
                 <div className="flex-1 space-y-1">
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold text-slate-200 cursor-pointer transition-colors">
-                    <Upload className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Upload Photo</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
-                  <p className="text-[10px] text-slate-400">Upload JPEG/PNG or choose preset below</p>
-                </div>
-              </div>
-
-              {/* Presets Grid */}
-              <div>
-                <p className="text-[10px] text-slate-400 mb-1.5">Choose from Presets:</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {PRESET_AVATARS.map((url, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setSelectedAvatar(url);
-                        setCustomAvatarUrl('');
-                      }}
-                      className={`relative rounded-full overflow-hidden p-0.5 border-2 transition-all ${
-                        selectedAvatar === url && !customAvatarUrl
-                          ? 'border-emerald-500 scale-105'
-                          : 'border-transparent hover:border-slate-600'
-                      }`}
-                    >
-                      <img src={url} alt={`Avatar ${idx}`} className="w-10 h-10 rounded-full object-cover" />
-                      {selectedAvatar === url && !customAvatarUrl && (
-                        <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
-                          <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold text-slate-200 cursor-pointer transition-colors">
+                      <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Upload Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    {avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setAvatarUrl('')}
+                        className="p-1 text-slate-400 hover:text-red-400 transition-colors"
+                        title="Remove photo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400">Upload JPEG/PNG or paste URL below</p>
                 </div>
               </div>
 
               {/* Custom Image URL option */}
-              <div>
+              <div className="flex items-center gap-2">
                 <input
                   type="url"
-                  value={customAvatarUrl}
-                  onChange={(e) => setCustomAvatarUrl(e.target.value)}
+                  value={customUrlInput}
+                  onChange={(e) => setCustomUrlInput(e.target.value)}
                   placeholder="Or paste image URL (https://...)"
-                  className="w-full px-3 py-1.5 bg-slate-800/80 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="flex-1 px-3 py-1.5 bg-slate-800/80 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                 />
+                <button
+                  type="button"
+                  onClick={handleApplyCustomUrl}
+                  disabled={!customUrlInput.trim()}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 text-xs font-bold rounded-lg border border-slate-700"
+                >
+                  Apply
+                </button>
               </div>
             </div>
           )}

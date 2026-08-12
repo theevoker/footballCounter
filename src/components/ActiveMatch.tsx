@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SessionData, UserProfile } from '../types';
 import { logEvent, undoEvent, subPlayer, endSession } from '../lib/api';
+import { PlayerAvatar } from './Avatar';
 import {
   Play,
   Pause,
@@ -590,7 +591,7 @@ export const ActiveMatch: React.FC<ActiveMatchProps> = ({
                   {/* Row 1: Player Avatar, Name + Sub Button */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img src={p.avatarUrl} alt={p.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-red-500/30 shrink-0" />
+                      <PlayerAvatar src={p.avatarUrl} name={p.name} className="w-8 h-8 rounded-full ring-2 ring-red-500/30 shrink-0" textClassName="text-xs" />
                       <div className="min-w-0">
                         <span className="font-bold text-xs sm:text-sm text-white block truncate">{p.name}</span>
                         {p.isTemp && <span className="text-[9px] text-amber-400 font-bold">Guest</span>}
@@ -661,7 +662,7 @@ export const ActiveMatch: React.FC<ActiveMatchProps> = ({
                   {/* Row 1: Player Avatar, Name + Sub Button */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img src={p.avatarUrl} alt={p.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0" />
+                      <PlayerAvatar src={p.avatarUrl} name={p.name} className="w-8 h-8 rounded-full ring-2 ring-blue-500/30 shrink-0" textClassName="text-xs" />
                       <div className="min-w-0">
                         <span className="font-bold text-xs sm:text-sm text-white block truncate">{p.name}</span>
                         {p.isTemp && <span className="text-[9px] text-amber-400 font-bold">Guest</span>}
