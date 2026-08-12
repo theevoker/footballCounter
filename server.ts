@@ -7,7 +7,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection } from "firebase
 import { SessionData, UserProfile, Match, MatchEvent, PlayerStats, SessionParticipant } from "./src/types";
 
 const app = express();
-const PORT = 3000;
+const PORT = 8080;
 
 app.use(express.json({ limit: "10mb" }));
 
